@@ -1,0 +1,14 @@
+{
+  "Create a skill with instructions on how -a7079882": {
+    "result": "success",
+    "contextFiles": [
+      ".xdrs/_core/adrs/index.md",
+      ".xdrs/_core/adrs/principles/003-skill-standards.md",
+      ".xdrs/_core/adrs/principles/skills/003-write-skill/SKILL.md",
+      ".xdrs/_core/bdrs/index.md",
+      ".xdrs/index.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "a9dd40b6bf1d4913cca7638a5b34820c"
+  }
+}

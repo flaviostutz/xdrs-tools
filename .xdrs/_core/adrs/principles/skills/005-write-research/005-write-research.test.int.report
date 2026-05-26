@@ -1,0 +1,15 @@
+{
+  "Create a very small research document wi-7896a781": {
+    "result": "success",
+    "contextFiles": [
+      ".github/skills/005-write-research/005-write-research.test.int.js",
+      ".xdrs/_core/adrs/index.md",
+      ".xdrs/_core/adrs/principles/001-xdrs-core.md",
+      ".xdrs/_core/adrs/principles/006-research-standards.md",
+      ".xdrs/_local/edrs/languages/researches/001-java-vs-python-for-datascience.md",
+      ".xdrs/index.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "2f06eb73c19194e53321d4b75c0fc214"
+  }
+}

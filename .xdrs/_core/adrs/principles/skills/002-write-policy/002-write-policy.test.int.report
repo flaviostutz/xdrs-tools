@@ -1,0 +1,13 @@
+{
+  "Create a very small XDRS Policy deciding to -8b1a2ddd": {
+    "result": "success",
+    "contextFiles": [
+      ".xdrs/_core/adrs/index.md",
+      ".xdrs/_core/adrs/principles/002-xdr-standards.md",
+      ".xdrs/_core/adrs/principles/skills/002-write-policy/SKILL.md",
+      ".xdrs/index.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "808c78ca2f4aeb670c7503766a37dc1a"
+  }
+}

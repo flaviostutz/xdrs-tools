@@ -1,0 +1,20 @@
+{
+  "Create a short article for new users exp-73060d4f": {
+    "result": "success",
+    "contextFiles": [
+      ".xdrs/_core/adrs/index.md",
+      ".xdrs/_core/adrs/principles/001-xdrs-core.md",
+      ".xdrs/_core/adrs/principles/002-xdr-standards.md",
+      ".xdrs/_core/adrs/principles/003-skill-standards.md",
+      ".xdrs/_core/adrs/principles/004-article-standards.md",
+      ".xdrs/_core/adrs/principles/006-research-standards.md",
+      ".xdrs/_core/adrs/principles/007-plan-standards.md",
+      ".xdrs/_core/adrs/principles/008-xdr-standards-structured.md",
+      ".xdrs/_core/adrs/principles/articles/001-xdrs-overview.md",
+      ".xdrs/_core/adrs/principles/skills/004-write-article/SKILL.md",
+      ".xdrs/index.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "3be2670eaae626887f9cd7ee8a8e5f6d"
+  }
+}

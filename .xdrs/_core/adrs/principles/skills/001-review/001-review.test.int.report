@@ -1,0 +1,23 @@
+{
+  "Review XDRS Policy 001-xdrs-core-ac1c8339": {
+    "result": "success",
+    "contextFiles": [
+      ".github/skills/001-lint/SKILL.md",
+      ".xdrs/_core/adrs/index.md",
+      ".xdrs/_core/adrs/principles/001-xdrs-core.md",
+      ".xdrs/_core/adrs/principles/002-xdr-standards.md",
+      ".xdrs/_local/adrs/index.md",
+      ".xdrs/index.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "080ea010bbb924d74c9196e7c3e0f6af"
+  },
+  "Reply ONLY with \"READY\" after checking i-a61b0904": {
+    "result": "success",
+    "contextFiles": [
+      ".xdrs/_core/adrs/principles/skills/001-lint/SKILL.md",
+      "AGENTS.md"
+    ],
+    "contextHash": "b64868b8dba3664c0a1b641f06ef718b"
+  }
+}
