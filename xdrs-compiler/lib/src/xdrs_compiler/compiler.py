@@ -5,6 +5,11 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .config import CompilerConfig
+from .pipeline.graph import build_graph
+from .pipeline.preparation import SUPPORTED_EXTENSIONS
+from .pipeline.state import CompilerState, ProposalsMap
+
 
 @dataclass
 class CompilationResult:
@@ -25,21 +30,22 @@ class CompilationResult:
 
 
 class Compiler:
-    """Compiles source documents from a directory into XDRS elements.
+    """Compiles source documents from a directory into XDRS policies and skills.
 
-    The compiler reads all supported source files under *source_dir*, converts
-    them into XDRS elements, and writes the output under *output_dir*. A
-    content-hash manifest is maintained so that subsequent runs only reprocess
-    documents whose content has changed (incremental compilation).
+    The compiler discovers all supported files under *config.input_dir*, runs
+    a holistic LangGraph agent pipeline (Preparation → Analysis → Synthesis → Report),
+    and writes XDRS elements under *config.xdrs_root/config.scope/*.
+
+    A content-hash manifest in *config.work_dir* enables incremental compilation:
+    if no source file has changed since the last run, the pipeline is skipped entirely.
     """
 
-    SUPPORTED_EXTENSIONS: tuple[str, ...] = (".md", ".yaml", ".yml", ".json", ".txt")
     MANIFEST_FILENAME = ".xdrs-compiler-manifest.json"
 
-    def __init__(self, source_dir: str | Path, output_dir: str | Path) -> None:
-        self.source_dir = Path(source_dir)
-        self.output_dir = Path(output_dir)
-        self._manifest_path = self.output_dir / self.MANIFEST_FILENAME
+    def __init__(self, config: CompilerConfig) -> None:
+        self.config = config
+        self._work_dir = Path(config.work_dir)
+        self._manifest_path = self._work_dir / self.MANIFEST_FILENAME
 
     # ------------------------------------------------------------------
     # Public API
@@ -47,50 +53,59 @@ class Compiler:
 
     def compile(self) -> CompilationResult:
         """Run a full (or incremental) compilation and return the result."""
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._work_dir.mkdir(parents=True, exist_ok=True)
+        source_dir = Path(self.config.input_dir)
+
+        # Discover source files
+        source_files: list[Path] = []
+        for ext in SUPPORTED_EXTENSIONS:
+            source_files.extend(source_dir.rglob(f"*{ext}"))
+        source_files = sorted(set(source_files))
+
+        if not source_files:
+            return CompilationResult()
+
+        # Load manifest and compute per-file hashes
         manifest = self._load_manifest()
-        result = CompilationResult()
+        current_hashes = {str(f.relative_to(source_dir)): self._hash_file(f) for f in source_files}
+        changed = [rel for rel, h in current_hashes.items() if manifest.get(rel) != h]
+        skipped = [rel for rel in current_hashes if rel not in changed]
 
-        for source_file in self._discover_sources():
-            rel = str(source_file.relative_to(self.source_dir))
-            current_hash = self._hash_file(source_file)
+        if not changed:
+            return CompilationResult(skipped=list(current_hashes.keys()))
 
-            if manifest.get(rel) == current_hash:
-                result.skipped.append(rel)
-                continue
+        # Run the full LangGraph pipeline
+        initial_state: CompilerState = {
+            "input_dir": self.config.input_dir,
+            "xdrs_root": self.config.xdrs_root,
+            "scope": self.config.scope,
+            "model": self.config.model,
+            "work_dir": self.config.work_dir,
+            "source_files": [],
+            "converted_files": {},
+            "analysis": {},
+            "proposals": ProposalsMap(),
+            "analysis_iteration": 0,
+            "judge_approved": False,
+            "judge_feedback": "",
+            "generated": [],
+            "errors": [],
+        }
+        pipeline = build_graph()
+        final_state: dict = pipeline.invoke(initial_state)  # type: ignore[assignment]
 
-            try:
-                self._process_file(source_file)
-                manifest[rel] = current_hash
-                result.compiled.append(rel)
-            except Exception as exc:  # noqa: BLE001
-                result.errors.append(f"{rel}: {exc}")
+        errors: list[str] = final_state.get("errors") or []
 
+        # Update manifest: only persist hashes when there are no errors
+        if not errors:
+            manifest.update(current_hashes)
         self._save_manifest(manifest)
-        return result
+
+        compiled = [doc.output_path for doc in (final_state.get("generated") or [])]
+        return CompilationResult(compiled=compiled, skipped=skipped, errors=errors)
 
     # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _discover_sources(self) -> list[Path]:
-        files: list[Path] = []
-        for ext in self.SUPPORTED_EXTENSIONS:
-            files.extend(self.source_dir.rglob(f"*{ext}"))
-        return sorted(files)
-
-    def _process_file(self, source_file: Path) -> None:
-        """Stub: convert a source file into an XDRS element.
-
-        Replace this with the actual agent-graph pipeline once the spec is defined.
-        """
-        relative = source_file.relative_to(self.source_dir)
-        dest = self.output_dir / relative
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(source_file.read_text(encoding="utf-8"), encoding="utf-8")
-
-    # ------------------------------------------------------------------
-    # Manifest
+    # Manifest helpers
     # ------------------------------------------------------------------
 
     def _load_manifest(self) -> dict[str, str]:
