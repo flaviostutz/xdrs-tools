@@ -1,0 +1,43 @@
+[project]
+name = "xdrs-compiler"
+version = "0.0.1"
+description = "Compiles documents in various formats into XDRS elements using agent graphs with support for incremental compilation."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[[project.authors]]
+name = "flaviostutz"
+
+[project.scripts]
+xdrs-compiler = "xdrs_compiler.__main__:main"
+
+[dependency-groups]
+dev = [
+  "pip-audit>=2.9.0",
+  "pyright>=1.1.400",
+  "pytest>=8.4.0",
+  "pytest-cov>=6.1.0",
+  "ruff>=0.11.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pyright]
+include = ["src", "tests"]
+venvPath = ".."
+venv = ".venv"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
