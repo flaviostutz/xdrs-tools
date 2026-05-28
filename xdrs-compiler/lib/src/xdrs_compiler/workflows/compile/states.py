@@ -38,6 +38,15 @@ class JudgementResult(BaseModel):
     feedback: str = ""  # guidance for the next iteration when not approved
 
 
+class VerificationResult(BaseModel):
+    """Output of the synthesis verification node."""
+
+    approved: bool
+    score: float | None = None
+    reason: str = ""
+    feedback: str = ""
+
+
 class GeneratedDoc(BaseModel):
     output_path: str  # relative to {xdrs_root}/{scope}/
     content: str
@@ -62,6 +71,10 @@ class CompilerState(TypedDict):
     judge_approved: bool  # True when judge accepts the proposals
     judge_feedback: str  # guidance from judge for the next re-analysis
     # Phase 3: Synthesis + output
+    verification_iteration: int
+    verification_passed: bool
+    verification_feedback: str
     generated: list[GeneratedDoc]
+    written_output_paths: list[str]
     # Accumulates across all nodes via operator.add
     errors: Annotated[list[str], operator.add]

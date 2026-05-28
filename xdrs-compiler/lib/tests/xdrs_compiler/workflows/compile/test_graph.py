@@ -1,42 +1,22 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from xdrs_compiler.pipeline.graph import build_graph
-from xdrs_compiler.pipeline.state import (
+from xdrs_compiler.workflows.compile.graph import graph
+from xdrs_compiler.workflows.compile.states import (
     FileAnalysis,
     JudgementResult,
     PolicyProposal,
     ProposalsMap,
     SkillProposal,
+    VerificationResult,
 )
 
 
-def _mock_analysis_llm(analysis: FileAnalysis) -> MagicMock:
-    m = MagicMock()
-    m.invoke.return_value = analysis
-    return m
-
-
-def _mock_proposals_llm(proposals: ProposalsMap) -> MagicMock:
-    m = MagicMock()
-    m.invoke.return_value = proposals
-    return m
-
-
-def _mock_text_llm(content: str) -> MagicMock:
-    resp = MagicMock()
-    resp.content = content
-    m = MagicMock()
-    m.invoke.return_value = resp
-    return m
-
-
-class TestBuildGraph:
-    def test_graph_compiles_without_error(self) -> None:
-        graph = build_graph()
+class TestGraph:
+    def test_graph_is_compiled(self) -> None:
         assert graph is not None
 
-    def test_full_pipeline_end_to_end(self, tmp_path: Path, monkeypatch) -> None:
+    def test_full_pipeline_end_to_end(self, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
         monkeypatch.chdir(tmp_path)
         src = tmp_path / "src"
         src.mkdir()
@@ -65,10 +45,7 @@ class TestBuildGraph:
             },
         )
 
-        with (
-            patch("xdrs_compiler.pipeline.analysis.ChatOpenAI") as mock_analysis_cls,
-            patch("xdrs_compiler.pipeline.synthesis.ChatOpenAI") as mock_synthesis_cls,
-        ):
+        with patch("xdrs_compiler.workflows.compile.agents.ChatOpenAI") as mock_cls:
             # analyze_docs uses with_structured_output for FileAnalysis
             analysis_llm = MagicMock()
             analysis_llm.invoke.return_value = fake_analysis
@@ -78,24 +55,25 @@ class TestBuildGraph:
             # judge node uses with_structured_output for JudgementResult — approve immediately
             judge_llm = MagicMock()
             judge_llm.invoke.return_value = JudgementResult(approved=True)
+            verify_llm = MagicMock()
+            verify_llm.invoke.return_value = VerificationResult(approved=True, score=1.0)
 
             def structured_output_side_effect(schema: type) -> MagicMock:
                 if schema is FileAnalysis:
                     return analysis_llm
                 if schema is JudgementResult:
                     return judge_llm
+                if schema is VerificationResult:
+                    return verify_llm
                 return proposals_llm
 
-            mock_analysis_cls.return_value.with_structured_output.side_effect = (
-                structured_output_side_effect
-            )
+            mock_cls.return_value.with_structured_output.side_effect = structured_output_side_effect
 
-            # synthesis uses plain ChatOpenAI (no structured output)
+            # synthesis and review use plain ChatOpenAI (no structured output)
             resp = MagicMock()
             resp.content = "---\nname: testscope-adr-policy-001-safety-checks\n---\n# Policy"
-            mock_synthesis_cls.return_value.invoke.return_value = resp
+            mock_cls.return_value.invoke.return_value = resp
 
-            graph = build_graph()
             final_state = graph.invoke(
                 {
                     "input_dir": str(src),
@@ -110,12 +88,17 @@ class TestBuildGraph:
                     "analysis_iteration": 0,
                     "judge_approved": False,
                     "judge_feedback": "",
+                    "verification_iteration": 0,
+                    "verification_passed": False,
+                    "verification_feedback": "",
                     "generated": [],
+                    "written_output_paths": [],
                     "errors": [],
                 }
             )
 
         assert isinstance(final_state["generated"], list)
         assert len(final_state["generated"]) >= 1
+        assert final_state["written_output_paths"]
         # Report file should exist
         assert (tmp_path / ".xdrs-compiler.report").exists()

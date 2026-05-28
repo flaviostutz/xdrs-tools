@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "xdrs-compiler eval sample",
+  "type": "object",
+  "required": ["id", "description", "source_docs", "expected_min_policies", "expected_min_skills"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique sample identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this test case"
+    },
+    "source_docs": {
+      "type": "array",
+      "description": "Synthetic source documents to feed into the compiler",
+      "items": {
+        "type": "object",
+        "required": ["filename", "content"],
+        "properties": {
+          "filename": {"type": "string"},
+          "content": {"type": "string"}
+        }
+      }
+    },
+    "expected_min_policies": {
+      "type": "integer",
+      "description": "Minimum number of policy documents expected in the output"
+    },
+    "expected_min_skills": {
+      "type": "integer",
+      "description": "Minimum number of skill documents expected in the output"
+    }
+  }
+}

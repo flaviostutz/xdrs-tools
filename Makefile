@@ -1,2 +1,2 @@
 bump:
-	npx -y filedist@latest install
+	npx -y filedist@latest update

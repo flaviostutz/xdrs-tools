@@ -1,3 +1,5 @@
 .venv/
 dist/
 .cache/
+mlruns/
+__pycache__

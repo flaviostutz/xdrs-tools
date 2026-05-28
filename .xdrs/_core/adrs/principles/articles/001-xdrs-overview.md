@@ -181,7 +181,7 @@ Follow [_core-adr-policy-001](../001-xdrs-core.md) and [_core-adr-policy-002](..
 1. **Install** — add the scope package as a dependency and run `npx xdrs-core extract` (or
    `pnpm exec xdrs-core extract`) to unpack XDRS files into `.xdrs/` in your workspace.
 2. **Pins and upgrades** — update the npm dependency version to pull in the latest decisions
-   for a scope. The `filedist` mechanism tracks managed files in `.filedist` and keeps
+   for a scope. The `filedist` mechanism tracks managed files in `.filedist.lock` and keeps
   `.xdrs/index.md` in `keepExisting` mode so local edits are preserved.
 3. **Multi-scope** — list multiple scope packages as dependencies. Edit `.xdrs/index.md` to
    add each scope's canonical index link; place more specific scopes below broader ones.
@@ -192,6 +192,7 @@ Follow [_core-adr-policy-001](../001-xdrs-core.md) and [_core-adr-policy-002](..
 
 ## References
 
+- [Presentation slides](.assets/001-xdrs-overview-slides.md) - Marp slide deck overview of this article
 - [_core-adr-policy-001](../001-xdrs-core.md) - XDRS elements: types, scopes, subjects, folder structure
 - [_core-adr-policy-002](../002-policy-standards.md) - Policy document standards and mandatory template
 - [_core-adr-policy-003](../003-skill-standards.md) - Skill standards and co-location rules

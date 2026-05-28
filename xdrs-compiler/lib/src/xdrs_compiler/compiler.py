@@ -5,10 +5,12 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import mlflow
+
 from .config import CompilerConfig
-from .pipeline.graph import build_graph
-from .pipeline.preparation import SUPPORTED_EXTENSIONS
-from .pipeline.state import CompilerState, ProposalsMap
+from .workflows.compile.graph import graph
+from .workflows.compile.nodes import SUPPORTED_EXTENSIONS
+from .workflows.compile.states import CompilerState, ProposalsMap
 
 
 @dataclass
@@ -74,6 +76,11 @@ class Compiler:
         if not changed:
             return CompilationResult(skipped=list(current_hashes.keys()))
 
+        tracking_dir = (self._work_dir / "mlruns").resolve()
+        tracking_dir.mkdir(parents=True, exist_ok=True)
+        mlflow.set_tracking_uri(tracking_dir.as_uri())
+        mlflow.set_experiment(f"xdrs-compiler/{self.config.scope}")
+
         # Run the full LangGraph pipeline
         initial_state: CompilerState = {
             "input_dir": self.config.input_dir,
@@ -88,20 +95,34 @@ class Compiler:
             "analysis_iteration": 0,
             "judge_approved": False,
             "judge_feedback": "",
+            "verification_iteration": 0,
+            "verification_passed": False,
+            "verification_feedback": "",
             "generated": [],
+            "written_output_paths": [],
             "errors": [],
         }
-        pipeline = build_graph()
-        final_state: dict = pipeline.invoke(initial_state)  # type: ignore[assignment]
 
-        errors: list[str] = final_state.get("errors") or []
+        with mlflow.start_run():
+            mlflow.log_param("model", self.config.model)
+            mlflow.log_param("scope", self.config.scope)
+            mlflow.log_param("input_dir", self.config.input_dir)
+            mlflow.log_param("changed_files", len(changed))
+
+            final_state: dict = graph.invoke(initial_state)  # type: ignore[assignment]
+
+            errors: list[str] = final_state.get("errors") or []
+            compiled = list(final_state.get("written_output_paths") or [])
+
+            mlflow.log_metric("compiled_count", len(compiled))
+            mlflow.log_metric("skipped_count", len(skipped))
+            mlflow.log_metric("error_count", len(errors))
 
         # Update manifest: only persist hashes when there are no errors
         if not errors:
             manifest.update(current_hashes)
         self._save_manifest(manifest)
 
-        compiled = [doc.output_path for doc in (final_state.get("generated") or [])]
         return CompilationResult(compiled=compiled, skipped=skipped, errors=errors)
 
     # ------------------------------------------------------------------

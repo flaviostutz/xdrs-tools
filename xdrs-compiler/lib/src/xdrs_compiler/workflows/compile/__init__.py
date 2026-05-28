@@ -1,5 +1,5 @@
-from .graph import build_graph
-from .state import (
+from .graph import graph
+from .states import (
     CompilerState,
     FileAnalysis,
     GeneratedDoc,
@@ -10,7 +10,7 @@ from .state import (
 )
 
 __all__ = [
-    "build_graph",
+    "graph",
     "CompilerState",
     "FileAnalysis",
     "GeneratedDoc",

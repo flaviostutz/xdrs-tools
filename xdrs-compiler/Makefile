@@ -33,12 +33,21 @@ test-examples: build
 			echo ">>> Running $$dir"; \
 			UV_PROJECT_ENVIRONMENT="$(UV_PROJECT_ENVIRONMENT)" UV_CACHE_DIR="$(UV_CACHE_DIR)" $(MISE) uv sync --project "$$dir" --frozen || exit 1; \
 			UV_PROJECT_ENVIRONMENT="$(UV_PROJECT_ENVIRONMENT)" UV_CACHE_DIR="$(UV_CACHE_DIR)" $(MISE) uv pip install --python "$(UV_PROJECT_ENVIRONMENT)/bin/python" lib/dist/*.whl || exit 1; \
-			UV_PROJECT_ENVIRONMENT="$(UV_PROJECT_ENVIRONMENT)" UV_CACHE_DIR="$(UV_CACHE_DIR)" $(MISE) uv run --project "$$dir" python "$$dir/main.py" || exit 1; \
+			$(MAKE) -C "$$dir" run || exit 1; \
+		fi; \
+	done
+
+eval:
+	@for dir in evals/*; do \
+		if [ -f "$$dir/Makefile" ]; then \
+			echo ">>> Evaluating $$dir"; \
+			$(MAKE) -C "$$dir" eval || exit 1; \
 		fi; \
 	done
 
 clean:
 	$(MAKE) -C lib clean
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .cache
 	rm -rf .venv
 

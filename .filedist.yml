@@ -1,2 +1,3 @@
 sets:
-  - package: agentme@latest
+  # - package: agentme@latest
+  - package: git:https://github.com/flaviostutz/agentme.git@main

@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import mlflow
+
 from .compiler import Compiler
 from .config import CompilerConfig
 
@@ -43,8 +45,29 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Validate OPENAI_API_KEY early
-    if not os.environ.get("OPENAI_API_KEY"):
+    # Enable LangChain auto-tracing for all agent runs
+    _langchain = getattr(mlflow, "langchain", None)
+    if _langchain is not None:
+        try:
+            _langchain.autolog()
+        except ModuleNotFoundError:
+            # MLflow's LangChain autologging is optional; continue when the extra isn't installed.
+            pass
+
+    # Validate credentials: OpenAI or Azure OpenAI
+    if os.environ.get("OPENAI_API_TYPE") == "azure":
+        missing_azure = [
+            v
+            for v in ("OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "OPENAI_API_VERSION")
+            if not os.environ.get(v)
+        ]
+        if missing_azure:
+            print(
+                f"Error: Azure OpenAI requires these env vars: {', '.join(missing_azure)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    elif not os.environ.get("OPENAI_API_KEY"):
         print(
             "Error: OPENAI_API_KEY environment variable is not set.\n"
             "Set it with:  export OPENAI_API_KEY=sk-...",

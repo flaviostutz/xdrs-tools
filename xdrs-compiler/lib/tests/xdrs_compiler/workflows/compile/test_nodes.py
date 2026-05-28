@@ -1,14 +1,19 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from xdrs_compiler.pipeline.preparation import (
+from xdrs_compiler.workflows.compile.nodes import (
+    REPORT_FILENAME,
     SUPPORTED_EXTENSIONS,
     conversion_node,
     discovery_node,
     filter_node,
+    report_node,
+    write_output_node,
 )
+from xdrs_compiler.workflows.compile.states import GeneratedDoc
 
 
 @pytest.fixture()
@@ -66,7 +71,7 @@ class TestConversionNode:
     def test_records_error_on_failure(self, base_state: dict) -> None:
         src = Path(base_state["input_dir"])
         state = {**base_state, "source_files": [str(src / "doc.md")]}
-        with patch("xdrs_compiler.pipeline.preparation.MarkItDown") as mock_mid:
+        with patch("xdrs_compiler.workflows.compile.nodes.MarkItDown") as mock_mid:
             mock_mid.return_value.convert.side_effect = RuntimeError("boom")
             result = conversion_node(state)  # type: ignore[arg-type]
         assert len(result["errors"]) == 1
@@ -94,3 +99,86 @@ class TestFilterNode:
         state = {"converted_files": {"a.md.md": "one two three four five six seven eight nine ten"}}
         result = filter_node(state)  # type: ignore[arg-type]
         assert "a.md.md" in result["converted_files"]
+
+
+class TestWriteOutputNode:
+    def _base_state(self, tmp_path: Path) -> dict:
+        return {
+            "xdrs_root": str(tmp_path / ".xdrs"),
+            "scope": "testscope",
+            "generated": [],
+            "written_output_paths": [],
+            "errors": [],
+        }
+
+    def test_writes_files_to_xdrs_root(self, tmp_path: Path) -> None:
+        doc = GeneratedDoc(
+            output_path="adrs/application/001-test.md",
+            content="# Test Policy",
+            related_input_files=[],
+            doc_type="policy",
+        )
+        state = {**self._base_state(tmp_path), "generated": [doc]}
+        write_output_node(state)  # type: ignore[arg-type]
+
+        expected = tmp_path / ".xdrs" / "testscope" / "adrs" / "application" / "001-test.md"
+        assert expected.exists()
+        assert expected.read_text(encoding="utf-8") == "# Test Policy"
+
+    def test_records_error_on_write_failure(self, tmp_path: Path) -> None:
+        doc = GeneratedDoc(
+            output_path="adrs/application/001-test.md",
+            content="# Policy",
+            related_input_files=[],
+            doc_type="policy",
+        )
+        state = {**self._base_state(tmp_path), "generated": [doc]}
+        with patch("pathlib.Path.write_text", side_effect=OSError("no space")):
+            result = write_output_node(state)  # type: ignore[arg-type]
+
+        assert len(result["errors"]) == 1
+
+
+class TestReportNode:
+    def _make_state(self, tmp_path: Path, generated: list[GeneratedDoc]) -> dict:
+        return {
+            "xdrs_root": str(tmp_path / ".xdrs"),
+            "scope": "testscope",
+            "generated": generated,
+            "written_output_paths": [doc.output_path for doc in generated],
+            "errors": [],
+        }
+
+    def test_writes_report_file(self, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.chdir(tmp_path)
+        doc = GeneratedDoc(
+            output_path="adrs/application/001-test.md",
+            content="# Policy",
+            related_input_files=["docs/source.pdf"],
+            doc_type="policy",
+        )
+        report_node(self._make_state(tmp_path, [doc]))  # type: ignore[arg-type]
+        assert (tmp_path / REPORT_FILENAME).exists()
+
+    def test_report_maps_output_to_inputs(self, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.chdir(tmp_path)
+        doc = GeneratedDoc(
+            output_path="adrs/application/001-test.md",
+            content="# Policy",
+            related_input_files=["docs/memo.pdf", "docs/notes.txt"],
+            doc_type="policy",
+        )
+        report_node(self._make_state(tmp_path, [doc]))  # type: ignore[arg-type]
+
+        data = json.loads((tmp_path / REPORT_FILENAME).read_text(encoding="utf-8"))
+        expected_key = str(
+            tmp_path / ".xdrs" / "testscope" / "adrs" / "application" / "001-test.md"
+        )
+        assert expected_key in data
+        assert data[expected_key]["related_input_files"] == ["docs/memo.pdf", "docs/notes.txt"]
+
+    def test_report_empty_when_no_generated(self, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.chdir(tmp_path)
+        report_node(self._make_state(tmp_path, []))  # type: ignore[arg-type]
+        data = json.loads((tmp_path / REPORT_FILENAME).read_text(encoding="utf-8"))
+        assert data == {}

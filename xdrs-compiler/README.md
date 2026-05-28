@@ -67,9 +67,12 @@ flowchart TD
     G -->|rejected, retry| E
     H --> I[generate_skills]
     I --> J[review]
-    J --> K[write_output]
-    K --> L[report]
-    L --> M([END])
+    J --> K{verify_output}
+    K -->|approved| L[write_output]
+    K -->|failed, retry| H
+    K -->|failed, retry limit| M[report]
+    L --> M
+    M --> N([END])
 ```
 
 ### Phase 1 — Preparation
@@ -104,6 +107,7 @@ flowchart TD
 | **generate_policies** | LLM writes each approved policy proposal as a complete XDRS Policy `.md` |
 | **generate_skills** | LLM writes each approved skill proposal as a complete XDRS `SKILL.md` |
 | **review** | LLM reviews and patches each generated document against XDRS formatting standards |
+| **verify_output** | Dedicated verification node decides whether reviewed documents are safe to write or must be regenerated |
 | **write_output** | Saves reviewed documents to `{xdrs_root}/{scope}/` |
 
 ### Phase 4 — Report
